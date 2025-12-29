@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Giriş | ZEKA KDS</title>
+    <style>
+        body { background: #2c3e50; font-family: 'Segoe UI', sans-serif; height: 100vh; display: flex; align-items: center; justify-content: center; margin: 0; }
+        .box { background: white; padding: 40px; border-radius: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); width: 350px; text-align: center; }
+        h2 { color: #34495e; margin-bottom: 30px; }
+        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; background: #e74c3c; color: white; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; margin-top: 10px; transition: 0.3s; }
+        button:hover { background: #c0392b; }
+        .error { color: red; display: none; margin-top: 15px; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <h2>📦 KDS Yönetici Paneli</h2>
+        <input type="text" id="kadi" placeholder="Kullanıcı Adı (admin)">
+        <input type="password" id="sifre" placeholder="Şifre (1234)">
+        <button onclick="giris()">GİRİŞ YAP</button>
+        <p id="hata" class="error">❌ Hatalı Kullanıcı Adı veya Şifre!</p>
+    </div>
+
+    <script>
+        function giris() {
+            const kadi = document.getElementById('kadi').value;
+            const sifre = document.getElementById('sifre').value;
+
+            // DİKKAT: Artık tam adres veriyoruz ki dosyadan açınca da bulsun
+            fetch('http://localhost:3000/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ kadi, sifre })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    // DİKKAT: .html uzantısı ekledik ki klasörden açınca bulsun
+                    window.location.href = 'dashboard.html';
+                } else {
+                    document.getElementById('hata').style.display = 'block';
+                }
+            })
+            .catch(err => alert("Sunucuya bağlanılamadı! 'node server.js' açık mı?"));
+        }
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Araç Filo Yönetimi | ZEKA KDS</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        /* --- TASARIM (DASHBOARD ILE AYNI) --- */
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; background: #ecf0f1; height: 100vh; overflow: hidden; }
+        .sidebar { width: 250px; background: #2c3e50; color: white; display: flex; flex-direction: column; padding: 20px; flex-shrink: 0; box-sizing: border-box; }
+        .menu-item { padding: 15px; color: #bdc3c7; text-decoration: none; display: flex; align-items: center; margin: 5px 0; border-radius: 5px; transition: 0.3s; }
+        .menu-item:hover, .menu-item.active { background: #34495e; color: white; }
+        .menu-item i { margin-right: 10px; width: 20px; text-align: center; }
+        /* Layout Düzenlemesi */
+        .content { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; }
+        
+        /* KPI KARTLARI */
+        .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; }
+        .kpi-card { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); display: flex; flex-direction: column; border-left: 5px solid #3498db; }
+        .kpi-title { font-size: 11px; color: #7f8c8d; font-weight: bold; text-transform: uppercase; margin-bottom: 5px; }
+        .kpi-value { font-size: 22px; font-weight: bold; color: #2c3e50; }
+
+        /* ORTA GRAFİK ALANI */
+        .chart-section { background: white; border-radius: 8px; padding: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); height: 320px; display: flex; flex-direction: column; }
+        .main-chart-wrapper { flex: 1; position: relative; min-height: 0; }
+
+        /* ALT GRAFİKLER */
+        .bottom-charts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; height: 240px; }
+        .small-chart-card { background: white; border-radius: 8px; padding: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); display: flex; flex-direction: column; overflow: hidden; }
+        .small-chart-header { font-size: 12px; font-weight: bold; color: #555; text-align: center; margin-bottom: 5px; border-bottom: 1px solid #eee; padding-bottom: 5px; flex-shrink: 0; }
+        .chart-container { flex: 1; position: relative; min-height: 0; } 
+
+        /* TABLO ALANI */
+        .table-section { background: white; border-radius: 8px; padding: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); display: flex; flex-direction: column; gap: 10px; flex: 1; }
+        
+        .filter-row { display: flex; gap: 10px; }
+        .btn-filter { flex: 1; border: none; padding: 8px; border-radius: 5px; font-weight: bold; color: white; cursor: pointer; opacity: 0.8; transition: 0.3s; font-size: 11px; display: flex; align-items: center; justify-content: center; gap: 5px; }
+        .btn-filter:hover, .btn-filter.active { opacity: 1; transform: scale(1.02); box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        .btn-red { background: #e74c3c; } .btn-yellow { background: #f1c40f; color: #333; } .btn-green { background: #27ae60; } .btn-gray { background: #95a5a6; }
+
+        .custom-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        .custom-table th { text-align: left; padding: 10px; background: #f8f9fa; color: #2c3e50; border-bottom: 2px solid #ddd; position: sticky; top: 0; }
+        .custom-table td { padding: 10px; border-bottom: 1px solid #eee; color: #555; vertical-align: middle; }
+        .custom-table tr:hover { background: #f9f9f9; }
+
+        .status-badge { padding: 4px 8px; border-radius: 4px; font-weight: bold; color: white; font-size: 10px; text-transform: uppercase; }
+        .badge-red { background: #e74c3c; } .badge-yellow { background: #f1c40f; color: #333; } .badge-green { background: #27ae60; }
+
+        .btn-action { padding: 5px 10px; border: none; border-radius: 4px; color: white; font-weight: bold; cursor: pointer; font-size: 10px; }
+        .btn-sell { background: #c0392b; } .btn-maintain { background: #e67e22; }
+        
+        .limit-text { color: #999; font-size: 10px; font-weight: normal; margin-left: 3px; }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+    <h2 style="font-size:20px; border-bottom:1px solid #34495e; padding-bottom:15px; margin-top:0;">📦 ZEKA KDS</h2>
+    <a href="dashboard.html" class="menu-item"><i class="fas fa-home"></i> Genel Bakış</a>
+    <a href="simulasyon.html" class="menu-item"><i class="fas fa-coins"></i> Finansal Simülasyon</a>
+    <a href="filo.html" class="menu-item active"><i class="fas fa-truck"></i> Araç Filosu</a>
+    <a href="depolar.html" class="menu-item"><i class="fas fa-warehouse"></i> Depolar & Harita</a>
+    <a href="personel.html" class="menu-item"><i class="fas fa-users"></i> Personel Analizi</a>
+    <a href="login.html" class="menu-item" style="margin-top:auto;"><i class="fas fa-sign-out-alt"></i> Çıkış</a>
+</div>
+
+    <div class="content">
+        <div class="kpi-row">
+            <div class="kpi-card" style="border-left-color: #3498db;">
+                <div class="kpi-title">TOPLAM FİLO</div>
+                <div class="kpi-value" id="kpiTotal">0 Araç</div>
+            </div>
+            <div class="kpi-card" style="border-left-color: #e74c3c;">
+                <div class="kpi-title">SATILMALI</div>
+                <div class="kpi-value" style="color:#e74c3c" id="kpiSell">0 Araç</div>
+            </div>
+            <div class="kpi-card" style="border-left-color: #f1c40f;">
+                <div class="kpi-title">İZLENMELİ</div>
+                <div class="kpi-value" style="color:#f39c12" id="kpiWatch">0 Araç</div>
+            </div>
+            <div class="kpi-card" style="border-left-color: #27ae60;">
+                <div class="kpi-title">SORUNSUZ</div>
+                <div class="kpi-value" style="color:#27ae60" id="kpiOk">0 Araç</div>
+            </div>
+        </div>
+
+        <div class="chart-section">
+            <h3 style="margin-top:0; color:#2c3e50; text-align:center; font-size:16px;">Mevcut Araç Sayısı (Depo Merkezli Dağılım)</h3>
+            <div class="main-chart-wrapper">
+                <canvas id="mainChart"></canvas>
+            </div>
+        </div>
+
+        <div class="bottom-charts">
+            <div class="small-chart-card">
+                <div class="small-chart-header">Araç Tipi Dağılımı</div>
+                <div class="chart-container"><canvas id="typeChart"></canvas></div>
+            </div>
+            <div class="small-chart-card" style="border-top: 3px solid #f1c40f;">
+                <div class="small-chart-header">Filo Sağlık Durumu</div>
+                <div class="chart-container"><canvas id="statusChart"></canvas></div>
+            </div>
+            <div class="small-chart-card">
+                <div class="small-chart-header">Maliyet vs. Kapasite</div>
+                <div class="chart-container"><canvas id="costChart"></canvas></div>
+            </div>
+        </div>
+
+        <div class="table-section">
+            <h3 style="margin:0; color:#2c3e50; font-size:16px;">Filo Bakım & Satış Karar Destek Tablosu</h3>
+            <div class="filter-row">
+                <button class="btn-filter btn-red active" onclick="filterTable('satilmali')">Satılması Gerekenler (<span id="btnSellCount">0</span>)</button>
+                <button class="btn-filter btn-yellow" onclick="filterTable('izle')">İzlenmesi Gerekenler (<span id="btnWatchCount">0</span>)</button>
+                <button class="btn-filter btn-green" onclick="filterTable('sorunsuz')">Sorunsuz Araçlar (<span id="btnOkCount">0</span>)</button>
+                <button class="btn-filter btn-gray" onclick="filterTable('hepsi')">Tüm Liste</button>
+            </div>
+
+            <div style="overflow-y: auto; max-height: 400px;">
+                <table class="custom-table">
+                    <thead>
+                        <tr>
+                            <th>Plaka</th>
+                            <th>Araç Tipi</th>
+                            <th>Bağlı Olduğu Depo (Bölge)</th>
+                            <th>Durum (Mevcut / Limit)</th>
+                            <th>Karar</th>
+                            <th>Aksiyon</th>
+                        </tr>
+                    </thead>
+                    <tbody id="fleetTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- AYARLAR ---
+        const KM_LIMIT_CRITICAL = 450000; 
+        const MAINT_LIMIT_CRITICAL = 12;
+
+        let fullFleetList = [];
+        let currentFilter = 'satilmali';
+        
+        // Grafik Referansları
+        let mainChartRef, typeChartRef, statusChartRef, costChartRef;
+
+        // ===============================================
+        // 1. SAYFA YÜKLENİNCE VERİLERİ ÇEK
+        // ===============================================
+        window.onload = function() {
+            verileriGetir();
+        };
+
+        function verileriGetir() {
+            // Sunucudaki API'ye istek atıyoruz
+            fetch('/api/filo-bilgileri')
+                .then(response => response.json())
+                .then(data => {
+                    // Veritabanından gelen listeyi frontend formatına çeviriyoruz
+                    fullFleetList = data.filoListesi.map(dbArac => {
+                        // Backend'den gelen renk koduna göre durumu belirliyoruz
+                        let durumKodu = 'sorunsuz';
+                        if (dbArac.Renk === 'danger') durumKodu = 'satilmali';
+                        else if (dbArac.Renk === 'warning') durumKodu = 'izle';
+
+                        return {
+                            id: dbArac.AracID,
+                            plaka: dbArac.Plaka,
+                            tip: dbArac.TipAdi,
+                            yer: dbArac.IlceAdi,
+                            km: dbArac.GuncelKM,
+                            bakim: dbArac.BakimSayisi,
+                            durum: durumKodu,
+                            // Limitleri de backend'den alabiliriz
+                            maxKm: dbArac.MaxKM, 
+                            maxBakim: dbArac.MaxBakimSayisi
+                        };
+                    });
+
+                    // Arayüzü Güncelle
+                    renderAllCharts();
+                    updateTableAndKPI();
+                    filterTable(currentFilter); // Filtreyi koru
+                })
+                .catch(err => console.error("Veri çekme hatası:", err));
+        }
+
+        // ===============================================
+        // 2. GRAFİK OLUŞTURMA FONKSİYONLARI
+        // ===============================================
+        function renderAllCharts() {
+            // Depo Bazlı Dağılım Hesabı
+            let depotTotals = {};
+            fullFleetList.forEach(v => { depotTotals[v.yer] = (depotTotals[v.yer] || 0) + 1; });
+
+            // Araç Tipi Dağılımı
+            let typeCounts = {};
+            fullFleetList.forEach(v => typeCounts[v.tip] = (typeCounts[v.tip] || 0) + 1);
+
+            // Durum Dağılımı
+            let statusCounts = [
+                fullFleetList.filter(v=>v.durum==='satilmali').length,
+                fullFleetList.filter(v=>v.durum==='izle').length,
+                fullFleetList.filter(v=>v.durum==='sorunsuz').length
+            ];
+
+            // 1. Ana Grafik (Depolar)
+            if(mainChartRef) mainChartRef.destroy();
+            mainChartRef = new Chart(document.getElementById('mainChart').getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(depotTotals),
+                    datasets: [{ label: 'Araç Sayısı', data: Object.values(depotTotals), backgroundColor: '#34495e', barThickness: 30 }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+            });
+
+            // 2. Pasta Grafik (Tipler)
+            if(typeChartRef) typeChartRef.destroy();
+            typeChartRef = new Chart(document.getElementById('typeChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(typeCounts),
+                    datasets: [{ data: Object.values(typeCounts), backgroundColor: ['#f1c40f', '#2ecc71', '#9b59b6', '#e67e22', '#c0392b'] }]
+                },
+                options: { maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { boxWidth: 10, font: { size: 9 } } } } }
+            });
+
+            // 3. Durum Grafiği
+            if(statusChartRef) statusChartRef.destroy();
+            statusChartRef = new Chart(document.getElementById('statusChart'), {
+                type: 'pie',
+                data: {
+                    labels: ['Satılmalı', 'Riskli', 'Sorunsuz'],
+                    datasets: [{ data: statusCounts, backgroundColor: ['#e74c3c', '#f1c40f', '#27ae60'] }]
+                },
+                options: { maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 9 } } } } }
+            });
+
+            // 4. Maliyet Grafiği (Sabit veri kalabilir veya geliştirilebilir)
+            if(costChartRef) costChartRef.destroy();
+            costChartRef = new Chart(document.getElementById('costChart'), {
+                type: 'bar',
+                data: {
+                    labels: ['Moto', 'Panel', 'Frigo', 'Kamy', 'Tır'],
+                    datasets: [
+                        { label: 'Kapasite', data: [10, 50, 50, 100, 200], backgroundColor: '#34495e' },
+                        { label: 'Maliyet', data: [15, 30, 45, 60, 90], backgroundColor: '#e67e22' }
+                    ]
+                },
+                options: { maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            });
+        }
+
+        // ===============================================
+        // 3. TABLO VE KPI GÜNCELLEME
+        // ===============================================
+        function updateTableAndKPI() {
+            const sellCount = fullFleetList.filter(v => v.durum === 'satilmali').length;
+            const watchCount = fullFleetList.filter(v => v.durum === 'izle').length;
+            const okCount = fullFleetList.filter(v => v.durum === 'sorunsuz').length;
+
+            document.getElementById('kpiTotal').innerText = fullFleetList.length + " Araç";
+            document.getElementById('kpiSell').innerText = sellCount + " Araç";
+            document.getElementById('kpiWatch').innerText = watchCount + " Araç";
+            document.getElementById('kpiOk').innerText = okCount + " Araç";
+
+            document.getElementById('btnSellCount').innerText = sellCount;
+            document.getElementById('btnWatchCount').innerText = watchCount;
+            document.getElementById('btnOkCount').innerText = okCount;
+        }
+
+        function filterTable(filterType) {
+            currentFilter = filterType;
+            const tbody = document.getElementById('fleetTableBody');
+            tbody.innerHTML = '';
+
+            document.querySelectorAll('.btn-filter').forEach(btn => btn.classList.remove('active'));
+            if(filterType === 'satilmali') document.querySelector('.btn-red').classList.add('active');
+            else if(filterType === 'izle') document.querySelector('.btn-yellow').classList.add('active');
+            else if(filterType === 'sorunsuz') document.querySelector('.btn-green').classList.add('active');
+            else document.querySelector('.btn-gray').classList.add('active');
+
+            let filteredList = fullFleetList;
+            if(filterType !== 'hepsi') filteredList = fullFleetList.filter(v => v.durum === filterType);
+
+            filteredList.forEach(vehicle => {
+                let badgeClass, badgeText, actionBtn;
+                if (vehicle.durum === 'satilmali') {
+                    badgeClass = 'badge-red'; badgeText = 'SATILMALI';
+                    actionBtn = `<button class="btn-action btn-sell" onclick="aksiyonYap(${vehicle.id}, '${vehicle.plaka}', 'sat')"><i class="fas fa-dollar-sign"></i> SATIŞ VER</button>`;
+                } else if (vehicle.durum === 'izle') {
+                    badgeClass = 'badge-yellow'; badgeText = 'RİSKLİ / İZLE';
+                    actionBtn = `<button class="btn-action btn-maintain" onclick="aksiyonYap(${vehicle.id}, '${vehicle.plaka}', 'bakim')"><i class="fas fa-tools"></i> BAKIMA AL</button>`;
+                } else {
+                    badgeClass = 'badge-green'; badgeText = 'SORUNSUZ';
+                    actionBtn = '-';
+                }
+
+                // Veritabanından gelen limitleri veya varsayılanları kullan
+                let maxKmLimit = vehicle.maxKm || KM_LIMIT_CRITICAL;
+                let maxBakimLimit = vehicle.maxBakim || MAINT_LIMIT_CRITICAL;
+
+                let kmDisplay = `<div style="font-weight:bold; color:#333">${vehicle.km.toLocaleString()} <span class="limit-text">/ ${maxKmLimit.toLocaleString()}</span></div>`;
+                let maintDisplay = `<div style="font-size:11px; color:#666">Bakım: <b>${vehicle.bakim}</b> <span class="limit-text">/ ${maxBakimLimit}</span></div>`;
+
+                tbody.innerHTML += `
+                    <tr>
+                        <td style="font-weight:bold;">${vehicle.plaka}</td>
+                        <td>${vehicle.tip}</td>
+                        <td>${vehicle.yer}</td>
+                        <td>${kmDisplay}${maintDisplay}</td>
+                        <td><span class="status-badge ${badgeClass}">${badgeText}</span></td>
+                        <td>${actionBtn}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        // ===============================================
+        // 4. AKSİYON (VERİTABANI GÜNCELLEME)
+        // ===============================================
+        function aksiyonYap(id, plaka, islemTipi) {
+            if(islemTipi === 'sat') {
+                Swal.fire({
+                    title: 'Satış Onayı',
+                    text: plaka + " plakalı araç veritabanından satıldı olarak işaretlenecek.",
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'Evet, Sat',
+                    cancelButtonText: 'İptal',
+                    confirmButtonColor: '#d33'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        // Backend'e Satış İsteği Gönder
+                        fetch('/api/arac-sat', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ id: id })
+                        })
+                        .then(res => res.json())
+                        .then(data => {
+                            if(data.success) {
+                                Swal.fire('Satıldı!', 'Veritabanı güncellendi.', 'success');
+                                verileriGetir(); // Listeyi yenile
+                            } else {
+                                Swal.fire('Hata', 'İşlem başarısız oldu.', 'error');
+                            }
+                        });
+                    }
+                });
+            } else {
+                Swal.fire({
+                    title: 'Bakım Onayı',
+                    text: plaka + " servise gönderilecek ve bakım sayacı sıfırlanacak.",
+                    icon: 'info',
+                    showCancelButton: true,
+                    confirmButtonText: 'Onayla',
+                    cancelButtonText: 'İptal'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        // Backend'e Bakım İsteği Gönder
+                        fetch('/api/arac-bakim', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ id: id })
+                        })
+                        .then(res => res.json())
+                        .then(data => {
+                            if(data.success) {
+                                Swal.fire('Bakım Tamamlandı!', 'Araç güncellendi.', 'success');
+                                verileriGetir(); // Listeyi yenile
+                            } else {
+                                Swal.fire('Hata', 'İşlem başarısız.', 'error');
+                            }
+                        });
+                    }
+                });
+            }
+        }
+    </script>
+</body>
+</html>

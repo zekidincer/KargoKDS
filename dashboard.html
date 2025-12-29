@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Yönetim Paneli | ZEKA KDS v2.3</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; background: #ecf0f1; height: 100vh; overflow: hidden; }
+        .sidebar { width: 250px; background: #2c3e50; color: white; display: flex; flex-direction: column; padding: 20px; flex-shrink: 0; }
+        .menu-item { padding: 15px; color: #bdc3c7; text-decoration: none; display: block; margin: 5px 0; border-radius: 5px; transition: 0.3s; display: flex; align-items: center; }
+        .menu-item:hover, .menu-item.active { background: #34495e; color: white; }
+        .menu-item i { margin-right: 10px; width: 20px; text-align: center; }
+        .content { flex: 1; padding: 20px; overflow-y: auto; }
+
+        /* KPI KARTLARI */
+        .kpi-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; margin-bottom: 20px; }
+        .kpi-card { background: white; padding: 15px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border-left: 5px solid #3498db; display: flex; align-items: center; justify-content: space-between; }
+        .kpi-info h3 { margin: 0; color: #7f8c8d; font-size: 11px; font-weight: bold; text-transform: uppercase; }
+        .kpi-info h1 { margin: 5px 0 0 0; color: #2c3e50; font-size: 20px; }
+        
+        .border-blue { border-left-color: #3498db; } .border-green { border-left-color: #27ae60; } .border-purple { border-left-color: #9b59b6; }
+        .border-red { border-left-color: #e74c3c; } .border-orange { border-left-color: #e67e22; }
+
+        /* ORTA GRID */
+        .main-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom: 20px; }
+        .chart-container { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); min-height: 300px; display: flex; flex-direction: column; overflow: hidden; }
+        .action-container { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); display: flex; flex-direction: column; height: 300px; }
+        
+        h3 { margin: 0 0 15px 0; color: #2c3e50; font-size: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+
+        /* ALT GRID */
+        .bottom-grid { display: grid; grid-template-columns: 1.5fr 1.5fr 1fr; gap: 20px; margin-bottom: 20px; height: 350px; }
+        #map { height: 100%; width: 100%; border-radius: 8px; }
+
+        /* ÖNERİLER */
+        .suggestion-item { padding: 10px; border-radius: 6px; margin-bottom: 8px; font-size: 11px; display: flex; align-items: flex-start; gap: 10px; line-height: 1.4; border-left: 4px solid #ccc; }
+        .sug-danger { background: #fdedec; color: #943126; border-left-color: #e74c3c; }
+        .sug-warn { background: #fef9e7; color: #9a7d0a; border-left-color: #f1c40f; }
+        .sug-info { background: #ebf5fb; color: #21618c; border-left-color: #3498db; }
+        .sug-success { background: #eafaf1; color: #1e8449; border-left-color: #27ae60; }
+
+        /* TABLO */
+        .table-container { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; padding: 10px; background: #f8f9fa; color: #2c3e50; font-size: 12px; }
+        td { padding: 10px; border-bottom: 1px solid #eee; color: #555; font-size: 12px; }
+        .status-badge { padding: 4px 8px; border-radius: 4px; font-weight: bold; color: white; font-size: 10px; }
+    </style>
+</head>
+<body>
+   <div class="sidebar">
+    <h2 style="font-size:20px; border-bottom:1px solid #34495e; padding-bottom:15px; margin-top:0;">📦 ZEKA KDS</h2>
+    <a href="dashboard.html" class="menu-item active"><i class="fas fa-home"></i> Genel Bakış</a>
+    <a href="simulasyon.html" class="menu-item"><i class="fas fa-coins"></i> Finansal Simülasyon</a>
+    <a href="filo.html" class="menu-item"><i class="fas fa-truck"></i> Araç Filosu</a>
+    <a href="depolar.html" class="menu-item"><i class="fas fa-warehouse"></i> Depolar & Harita</a>
+    <a href="personel.html" class="menu-item"><i class="fas fa-users"></i> Personel Analizi</a>
+    <a href="login.html" class="menu-item" style="margin-top:auto;"><i class="fas fa-sign-out-alt"></i> Çıkış</a>
+</div>
+    <div class="content">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <h2 style="color:#2c3e50; margin:0;">Stratejik Yönetim Paneli</h2>
+            <span id="lastUpdate" style="font-size:12px; color:#7f8c8d;"></span>
+        </div>
+        
+        <div class="kpi-grid">
+            <div class="kpi-card border-blue">
+                <div class="kpi-info"><h3>Filo Sağlık Skoru</h3><h1 id="kpiHealth">%0</h1></div>
+                <div style="font-size:25px; color:#3498db;"><i class="fas fa-heartbeat"></i></div>
+            </div>
+            <div class="kpi-card border-green">
+                <div class="kpi-info"><h3>Aktif Araçlar</h3><h1 id="kpiArac">0</h1></div>
+                <div style="font-size:25px; color:#27ae60;"><i class="fas fa-truck-moving"></i></div>
+            </div>
+            <div class="kpi-card border-purple">
+                <div class="kpi-info"><h3>Toplam Kapasite</h3><h1 id="kpiHacim">0 m³</h1></div>
+                <div style="font-size:25px; color:#9b59b6;"><i class="fas fa-warehouse"></i></div>
+            </div>
+            <div class="kpi-card border-orange">
+                <div class="kpi-info"><h3>Personel Sayısı</h3><h1 id="kpiPersonel">0</h1></div>
+                <div style="font-size:25px; color:#e67e22;"><i class="fas fa-users"></i></div>
+            </div>
+            <div class="kpi-card border-red">
+                <div class="kpi-info"><h3>Acil Aksiyon</h3><h1 id="kpiAksiyon">0</h1></div>
+                <div style="font-size:25px; color:#e74c3c;"><i class="fas fa-exclamation-circle"></i></div>
+            </div>
+        </div>
+
+        <div class="main-grid">
+            <div class="chart-container">
+                <h3><i class="fas fa-chart-area"></i> Bölgesel Yük Analizi</h3>
+                <div style="flex:1; position:relative;"><canvas id="loadChart"></canvas></div>
+            </div>
+            <div class="action-container">
+                <h3><i class="fas fa-brain"></i> KDS Stratejik Öneriler</h3>
+                <div id="suggestionList" style="overflow-y:auto; flex:1;">Yükleniyor...</div>
+            </div>
+        </div>
+
+        <div class="bottom-grid">
+            <div class="chart-container">
+                <h3><i class="fas fa-map-marked-alt"></i> Depo Lokasyonları</h3>
+                <div id="map"></div>
+            </div>
+            <div class="chart-container">
+                <h3><i class="fas fa-chart-line"></i> Bölgesel İK Performansı</h3>
+                <div style="flex:1; position:relative;"><canvas id="regionPerfChart"></canvas></div>
+            </div>
+            <div class="chart-container">
+                <h3><i class="fas fa-truck"></i> Araç Tipi Dağılımı</h3>
+                <div style="flex:1; position:relative;"><canvas id="statusChart"></canvas></div>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <h3><i class="fas fa-list-ul"></i> Kritik Depo & Filo Özeti</h3>
+            <table id="summaryTable">
+                <thead><tr><th>Bölge</th><th>Doluluk</th><th>Araç</th><th>Personel Durumu</th><th>Durum</th></tr></thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        let map;
+        let chartLoad = null;
+        let chartStatus = null;
+        let chartRegion = null;
+
+        const ilceCoords = {
+            'Aliağa': [38.7993, 26.9728], 'Balçova': [38.3892, 27.0461], 'Bayındır': [38.2167, 27.6472], 'Bayraklı': [38.4619, 27.1733],
+            'Bergama': [39.1228, 27.1800], 'Beydağ': [38.0867, 28.2083], 'Bornova': [38.4675, 27.2222], 'Buca': [38.3825, 27.1711],
+            'Çeşme': [38.3233, 26.3042], 'Çiğli': [38.4875, 27.0722], 'Dikili': [39.0717, 26.8900], 'Foça': [38.6694, 26.7556],
+            'Gaziemir': [38.3211, 27.1278], 'Güzelbahçe': [38.3736, 26.8933], 'Karabağlar': [38.3761, 27.1350], 'Karaburun': [38.6367, 26.5133],
+            'Karşıyaka': [38.4572, 27.1172], 'Kemalpaşa': [38.4250, 27.4194], 'Kınık': [39.0833, 27.3833], 'Kiraz': [38.2306, 28.2056],
+            'Konak': [38.4189, 27.1286], 'Menderes': [38.2500, 27.1333], 'Menemen': [38.6000, 27.0722], 'Narlıdere': [38.3972, 27.0139],
+            'Ödemiş': [38.2289, 27.9733], 'Seferihisar': [38.1983, 26.8389], 'Selçuk': [37.9483, 27.3683], 'Tire': [38.0878, 27.7317],
+            'Torbalı': [38.1528, 27.3639], 'Urla': [38.3225, 26.7633]
+        };
+
+        window.onload = () => {
+            initMap();
+            document.getElementById('lastUpdate').innerText = "Son Veri: " + new Date().toLocaleTimeString();
+            fetchData();
+        };
+
+        function initMap() {
+            map = L.map('map').setView([38.4192, 27.1287], 9);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        }
+
+        async function fetchData() {
+            try {
+                // VERİ KAYNAĞI DEĞİŞİKLİĞİ: Araç Tiplerini alabilmek için 'filo-bilgileri'ne geçtik
+                const [depoRes, aracRes, persRes] = await Promise.all([
+                    fetch('/api/depolar'),
+                    fetch('/api/filo-bilgileri'), // Değişti: Detaylı filo verisi
+                    fetch('/api/personel-listesi')
+                ]);
+                const depolar = await depoRes.json();
+                const aracData = await aracRes.json(); 
+                const personel = await persRes.json();
+                // processDashboard fonksiyonuna artık detaylı listeyi gönderiyoruz
+                processDashboard(depolar, aracData.filoListesi, personel);
+            } catch (err) { console.error(err); }
+        }
+
+        function processDashboard(depolar, araclar, personel) {
+            // KPI HESAPLAMALARI
+            let aktifArac = araclar.filter(a => a.Durum === 'Aktif').length;
+            let serviste = araclar.filter(a => a.Durum === 'Serviste').length;
+            let satilmali = araclar.filter(a => parseFloat(a.GuncelKM) >= parseFloat(a.MaxKM)).length;
+            let kritikPersonel = personel.filter(p => p.VerimlilikSkoru < 60).length;
+            let egitimPersonel = personel.filter(p => p.VerimlilikSkoru >= 60 && p.VerimlilikSkoru <= 85).length;
+            let toplamKapasite = depolar.reduce((a, b) => a + (parseFloat(b.Kapasite) || 0), 0);
+            
+            let kritikDepo = depolar.filter(d => d.Oran > 90).length;
+            let toplamAksiyon = satilmali + kritikPersonel + kritikDepo;
+
+            document.getElementById('kpiHealth').innerText = `%${Math.round(((araclar.length-satilmali)/araclar.length)*100)}`;
+            document.getElementById('kpiArac').innerText = aktifArac;
+            document.getElementById('kpiHacim').innerText = Math.round(toplamKapasite).toLocaleString();
+            document.getElementById('kpiPersonel').innerText = personel.length;
+            document.getElementById('kpiAksiyon').innerText = toplamAksiyon;
+
+            // HARİTA
+            depolar.forEach(d => {
+                if(ilceCoords[d.Ilce]) {
+                    let color = d.Oran > 90 ? '#e74c3c' : (d.Oran > 75 ? '#f1c40f' : '#27ae60');
+                    L.circleMarker(ilceCoords[d.Ilce], { radius: 8, color: color, fillOpacity: 0.8 })
+                    .addTo(map).bindPopup(`<b>${d.Ilce}</b><br>Doluluk: %${d.Oran}<br>Araç: ${d.AracSayisi}`);
+                }
+            });
+
+            // AKILLI ÖNERİLER
+            const sug = document.getElementById('suggestionList');
+            sug.innerHTML = '';
+            
+            if(satilmali > 0) sug.innerHTML += `<div class="suggestion-item sug-danger"><i class="fas fa-truck"></i> <b>FİLO:</b> ${satilmali} araç kullanım ömrünü doldurdu, acil yenileme planı yapın.</div>`;
+            if(kritikPersonel > 0) sug.innerHTML += `<div class="suggestion-item sug-danger"><i class="fas fa-user-times"></i> <b>İK:</b> ${kritikPersonel} personel kritik verimlilikte (<%60), fesih süreci değerlendirilmeli.</div>`;
+            if(kritikDepo > 0) sug.innerHTML += `<div class="suggestion-item sug-warn"><i class="fas fa-warehouse"></i> <b>DEPO:</b> ${kritikDepo} depo taştı (>%90), ek sefer koyulmalı.</div>`;
+            if(egitimPersonel > 20) sug.innerHTML += `<div class="suggestion-item sug-info"><i class="fas fa-chalkboard-teacher"></i> <b>EĞİTİM:</b> ${egitimPersonel} personel geliştirilebilir seviyede (%60-85). Toplu eğitim ata.</div>`;
+            if(serviste > 5) sug.innerHTML += `<div class="suggestion-item sug-info"><i class="fas fa-tools"></i> <b>SERVİS:</b> ${serviste} araç şu an bakımda, operasyonel gecikme riski var.</div>`;
+            let yuksekVerim = personel.filter(p => p.VerimlilikSkoru > 85).length;
+            sug.innerHTML += `<div class="suggestion-item sug-success"><i class="fas fa-check-circle"></i> <b>SİSTEM:</b> ${yuksekVerim} personel "Yüksek Performans" gösteriyor, prim havuzu oluşturulabilir.</div>`;
+
+            // TABLO
+            const tbody = document.querySelector('#summaryTable tbody');
+            tbody.innerHTML = '';
+            const ilcePerfData = {};
+            depolar.forEach(d => {
+                let pList = personel.filter(p => p.IlceAdi === d.Ilce);
+                let avg = pList.length ? Math.round(pList.reduce((s,x)=>s+x.VerimlilikSkoru,0)/pList.length) : 0;
+                ilcePerfData[d.Ilce] = avg;
+                let pClass = avg < 60 ? '#c0392b' : (avg > 80 ? '#27ae60' : '#e67e22');
+                tbody.innerHTML += `
+                    <tr>
+                        <td><b>${d.Ilce}</b></td>
+                        <td><div style="background:#eee; height:6px; width:100%; border-radius:3px;"><div style="width:${Math.min(d.Oran,100)}%; background:${d.Renk}; height:100%; border-radius:3px;"></div></div> %${d.Oran}</td>
+                        <td>${d.AracSayisi}</td>
+                        <td><span style="color:${pClass}; font-weight:bold;"><i class="fas fa-users"></i> Ort. %${avg}</span></td>
+                        <td><span class="status-badge" style="background:${d.Renk}">${d.Durum}</span></td>
+                    </tr>`;
+            });
+
+            // ARAÇ TİPLERİNİ SAY (YENİ GRAFİK İÇİN)
+            const typeCounts = {};
+            araclar.forEach(a => {
+                const tip = a.TipAdi || 'Bilinmiyor';
+                typeCounts[tip] = (typeCounts[tip] || 0) + 1;
+            });
+
+            renderCharts(depolar, typeCounts, ilcePerfData);
+        }
+
+        function renderCharts(depolar, typeCounts, ilcePerfData) {
+            if (chartLoad) chartLoad.destroy();
+            if (chartStatus) chartStatus.destroy();
+            if (chartRegion) chartRegion.destroy();
+
+            // 1. Bölgesel Yük
+            chartLoad = new Chart(document.getElementById('loadChart').getContext('2d'), {
+                type: 'bar',
+                data: { labels: depolar.map(d => d.Ilce).slice(0,10), datasets: [{ label:'Doluluk %', data: depolar.map(d=>d.Oran).slice(0,10), backgroundColor:'#3498db', borderRadius:4 }] },
+                options: { responsive: true, maintainAspectRatio: false, scales: {y: {beginAtZero: true, max:100}} }
+            });
+
+            // 2. ARAÇ TİPİ DAĞILIMI (YENİ GRAFİK - RESİMDEKİ GİBİ)
+            chartStatus = new Chart(document.getElementById('statusChart').getContext('2d'), {
+                type: 'doughnut',
+                data: { 
+                    labels: Object.keys(typeCounts), 
+                    datasets: [{ 
+                        data: Object.values(typeCounts), 
+                        backgroundColor: ['#f1c40f', '#2ecc71', '#9b59b6', '#e67e22', '#c0392b'], // Sarı, Yeşil, Mor, Turuncu, Kırmızı
+                        borderWidth: 0 // Kenarlık yok, temiz görünüm
+                    }] 
+                },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    cutout: '60%', // Ortası boş (Simit)
+                    plugins: { 
+                        legend: { position:'bottom', labels: { boxWidth:10, font:{size:10} } }
+                    } 
+                }
+            });
+
+            // 3. Bölgesel İK Performans
+            const labels = Object.keys(ilcePerfData).slice(0,10);
+            const data = Object.values(ilcePerfData).slice(0,10);
+            chartRegion = new Chart(document.getElementById('regionPerfChart').getContext('2d'), {
+                type: 'line',
+                data: { 
+                    labels: labels, 
+                    datasets: [{ 
+                        label: 'İK Verimlilik %', 
+                        data: data, 
+                        borderColor: '#2ecc71', 
+                        backgroundColor: 'rgba(46, 204, 113, 0.1)', 
+                        fill: true, 
+                        tension: 0.4 
+                    }] 
+                },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    scales: { y: { min: 0, max: 100 } },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+    </script>
+</body>
+</html>

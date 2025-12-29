@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>KDS Simülasyon Merkezi</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        /* --- CSS AYNI --- */
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; background: #ecf0f1; height: 100vh; overflow: hidden; }
+        .sidebar { width: 250px; background: #2c3e50; color: white; display: flex; flex-direction: column; padding: 20px; flex-shrink: 0; box-sizing: border-box; }
+        .menu-item { padding: 15px; color: #bdc3c7; text-decoration: none; display: flex; align-items: center; margin: 5px 0; border-radius: 5px; transition: 0.3s; }
+        .menu-item:hover, .menu-item.active { background: #34495e; color: white; }
+        .menu-item i { margin-right: 10px; width: 20px; text-align: center; }
+        .settings-panel { width: 320px; background: #34495e; padding: 20px; overflow-y: auto; color: white; border-left: 1px solid #2c3e50; display:flex; flex-direction:column; gap:15px; }
+        .content { flex: 1; padding: 20px; overflow-y: auto; display:flex; flex-direction:column; }
+        .view-section { display: none; animation: fadeIn 0.5s; }
+        .view-section.active { display: block; }
+        @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(450px, 1fr)); gap: 20px; padding-bottom: 50px; } 
+        .card { background: white; border-radius: 8px; padding: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border-top: 5px solid #bdc3c7; font-size: 12px; display: flex; flex-direction: column; }
+        .border-kritik { border-top-color: #e74c3c; } .border-mevcut { border-top-color: #27ae60; } .border-uyari { border-top-color: #f1c40f; } .border-verimsiz { border-top-color: #95a5a6; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 11px; }
+        td { border-bottom: 1px solid #f0f0f0; padding: 8px 4px; color: #34495e; vertical-align: middle; }
+        tr:last-child td { border-bottom: none; }
+        .charts-container { padding: 10px; }
+        .chart-row-full { margin-bottom: 20px; height: 350px; width: 100%; }
+        .chart-row-half { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; height: 350px; width: 100%; }
+        .chart-box { background: white; padding: 15px; border-radius: 10px; height: 100%; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .canvas-wrapper { flex: 1; position: relative; width: 100%; height: 100%; min-height: 0; }
+        select, input[type=number], input[type=range] { width: 100%; box-sizing: border-box; padding: 5px; margin-top: 5px; border-radius: 4px; border:1px solid #ccc; }
+        .slider-group { background: rgba(0,0,0,0.2); padding: 8px; border-radius: 5px; margin-bottom: 8px; }
+        .progress-bg { height: 12px; background: #ecf0f1; border-radius: 6px; margin-top: 5px; overflow: hidden; border: 1px solid #bdc3c7; position: relative; }
+        .progress-fill { height: 100%; transition: width 0.6s ease-in-out; border-radius: 5px; }
+        .kpi-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; margin-bottom: 20px; }
+        .kpi-card { background: white; padding: 15px; border-radius: 8px; text-align: center; border-bottom: 4px solid #34495e; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h2 style="font-size:20px; border-bottom:1px solid #34495e; padding-bottom:15px; margin-top:0;">📦 ZEKA KDS</h2>
+        <a href="dashboard.html" class="menu-item"><i class="fas fa-home"></i> Genel Bakış</a>
+        <a href="simulasyon.html" class="menu-item active"><i class="fas fa-coins"></i> Finansal Simülasyon</a>
+        <a href="filo.html" class="menu-item"><i class="fas fa-truck"></i> Araç Filosu</a>
+        <a href="depolar.html" class="menu-item"><i class="fas fa-warehouse"></i> Depolar & Harita</a>
+        <a href="personel.html" class="menu-item"><i class="fas fa-users"></i> Personel Analizi</a>
+        <a href="login.html" class="menu-item" style="margin-top:auto;"><i class="fas fa-sign-out-alt"></i> Çıkış</a>
+    </div>
+    
+    <div class="settings-panel">
+        <h3>⚙️ Parametreler</h3>
+        <div style="margin-bottom:10px;">
+            <label>Analiz Edilecek İlçe</label>
+            <select id="ilceSecimi" onchange="switchView()">
+                <option value="hepsi">-- Tüm İlçeler (Genel Bakış) --</option>
+                <option disabled>Veriler Yükleniyor...</option>
+            </select>
+        </div>
+        <div style="margin-bottom:10px;"><label>Tahmin Periyodu</label>
+            <select id="zamanPeriyodu" onchange="genelHesapla()">
+                <option value="12">1 Yıl</option>
+                <option value="6">6 Ay</option>
+            </select>
+        </div>
+
+        <div style="background:#e67e22; padding:10px; border-radius:5px; margin-bottom:15px;">
+            <strong style="font-size:12px;">💸 EKONOMİK FAKTÖRLER</strong>
+            <div style="margin-bottom:5px;">
+                <label style="font-size:11px;">Enflasyon <span id="mevcut_enf" style="color:#eee; font-size:9px;">(%65)</span> <span id="val_enf" style="float:right">%0</span></label>
+                <input type="range" id="input_enf" min="-50" max="100" value="0" oninput="updateLabel('val_enf', this.value); genelHesapla()">
+            </div>
+            <div style="margin-bottom:5px;">
+                <label style="font-size:11px;">Yakıt <span id="mevcut_yakit" style="color:#eee; font-size:9px;">(42 TL)</span> <span id="val_yakit" style="float:right">%0</span></label>
+                <input type="range" id="input_yakit" min="-50" max="100" value="0" oninput="updateLabel('val_yakit', this.value); genelHesapla()">
+            </div>
+            <div style="margin-bottom:5px;">
+                <label style="font-size:11px;">Bakım <span id="mevcut_bakim" style="color:#eee; font-size:9px;">(8500 TL)</span> <span id="val_bakim" style="float:right">%0</span></label>
+                <input type="range" id="input_bakim" min="-50" max="100" value="0" oninput="updateLabel('val_bakim', this.value); genelHesapla()">
+            </div>
+            <div style="margin-bottom:5px;">
+                <label style="font-size:11px;">Personel <span id="mevcut_personel" style="color:#eee; font-size:9px;">(22.500 TL)</span> <span id="val_personel" style="float:right">%0</span></label>
+                <input type="range" id="input_personel" min="-50" max="100" value="0" oninput="updateLabel('val_personel', this.value); genelHesapla()">
+            </div>
+        </div>
+
+        <div style="margin-bottom:15px;"><strong style="font-size:12px; color:#bdc3c7;">📦 KATEGORİ BAZLI ARTIŞ</strong><div id="categorySliders"></div></div>
+        
+        <div><label style="font-size:11px;">Açma Limiti (m³)</label><input type="number" id="limitAcma" value="3500" oninput="genelHesapla()"></div>
+        <div><label style="font-size:11px;">Maliyet Limiti (TL)</label><input type="number" id="limitMaliyet" value="500000" oninput="genelHesapla()"></div>
+        <div><label style="font-size:11px;">Kapatma Limiti (m³)</label><input type="number" id="limitKapatma" value="500" oninput="genelHesapla()"></div>
+    </div>
+
+    <div class="content">
+        <h1 style="margin-top:0; color:#2c3e50;" id="pageTitle">Genel Projeksiyon</h1>
+        
+        <div id="cardsView" class="view-section active"><div id="gridArea" class="grid">Yükleniyor...</div></div>
+        
+        <div id="chartsView" class="view-section">
+            <div class="kpi-row">
+                <div class="kpi-card"><h3 style="margin:0; color:#7f8c8d; font-size:14px;">Tahmini Yük</h3><h1 id="kpiHacim" style="margin:5px 0; color:#2c3e50">0 m³</h1></div>
+                <div class="kpi-card"><h3 style="margin:0; color:#7f8c8d; font-size:14px;">Günlük Maliyet</h3><h1 id="kpiMaliyet" style="margin:5px 0; color:#c0392b">0 ₺</h1></div>
+                <div class="kpi-card"><h3 style="margin:0; color:#7f8c8d; font-size:14px;">Araç İhtiyacı</h3><h1 id="kpiArac" style="margin:5px 0; color:#2980b9">0 Adet</h1></div>
+                <div class="kpi-card"><h3 style="margin:0; color:#7f8c8d; font-size:14px;">Personel İhtiyacı</h3><h1 id="kpiPersonel" style="margin:5px 0; color:#e67e22">0 Kişi</h1></div>
+                <div class="kpi-card"><h3 style="margin:0; color:#7f8c8d; font-size:14px;">Karar</h3><h1 id="kpiKarar" style="margin:5px 0; font-size:18px;">-</h1></div>
+            </div>
+
+            <div id="depoStatusBar" style="background:white; padding:15px; border-radius:8px; margin-bottom:20px; display:none; border-left: 5px solid #2980b9; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
+                <div style="display:flex; justify-content:space-between; margin-bottom:5px; font-weight:bold; color:#2c3e50;">
+                    <span><i class="fas fa-battery-half"></i> Mevcut Depo Doluluk Durumu</span>
+                    <span id="depoDolulukYuzde">%0</span>
+                </div>
+                <div class="progress-bg"><div id="depoDolulukBar" class="progress-fill" style="width:0%; background:#27ae60;"></div></div>
+                <div style="font-size:12px; color:#7f8c8d; margin-top:8px; display:flex; justify-content:space-between; align-items:center;">
+                    <span><i class="fas fa-box"></i> Dolu: <b id="depoDoluText" style="color:#2c3e50">0</b> m³</span>
+                    <span id="depoAcikText" style="font-weight:bold; background:#ecf0f1; padding:2px 8px; border-radius:4px;">Analiz Yapılıyor...</span>
+                    <span><i class="fas fa-warehouse"></i> Kapasite: <b id="depoKapasiteText" style="color:#2c3e50">0</b> m³</span>
+                </div>
+            </div>
+
+            <div class="charts-container">
+                <div class="chart-row-full"><div class="chart-box"><h3><i class="fas fa-chart-bar"></i> Filo Karşılaştırması (Gereken Araç Adedi vs. Mevcut Stok)</h3><div class="canvas-wrapper"><canvas id="compareChart"></canvas></div></div></div>
+                <div class="chart-row-half">
+                    <div class="chart-box"><h3><i class="fas fa-chart-column"></i> Kategori Bazlı Hacim</h3><div class="canvas-wrapper"><canvas id="catChart"></canvas></div></div>
+                    <div class="chart-box"><h3><i class="fas fa-truck"></i> Filo Yapısı</h3><div class="canvas-wrapper"><canvas id="fleetChart"></canvas></div></div>
+                </div>
+                <div class="chart-row-half">
+                    <div class="chart-box"><h3><i class="fas fa-users"></i> Personel Planlama (Mevcut vs Gereken)</h3><div class="canvas-wrapper"><canvas id="personnelCompareChart"></canvas></div></div>
+                    <div class="chart-box"><h3><i class="fas fa-lira-sign"></i> Maliyet Dağılımı</h3><div class="canvas-wrapper"><canvas id="costChart"></canvas></div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let chart1=null, chart2=null, chart3=null, chart4=null, chart5=null;
+        let ilceListesiYuklendi = false;
+        let globalData = []; 
+
+        const categoryMasterData = [
+            { id: 'Elektronik',   label: 'Elektronik',        arac: 'Panelvan', agirlik: 0.15 },
+            { id: 'Moda',         label: 'Moda',              arac: 'Panelvan', agirlik: 0.15 },
+            { id: 'EvYasam',      label: 'Ev, Yaşam',         arac: 'Kamyonet', agirlik: 0.10 },
+            { id: 'OtoBahce',     label: 'Oto, Bahçe',        arac: 'Tır',      agirlik: 0.05 },
+            { id: 'AnneBebek',    label: 'Anne, Bebek',       arac: 'Panelvan', agirlik: 0.12 },
+            { id: 'Spor',         label: 'Spor, Outdoor',     arac: 'Panelvan', agirlik: 0.08 },
+            { id: 'Kozmetik',     label: 'Kozmetik',          arac: 'Frigo',    agirlik: 0.10 },
+            { id: 'Supermarket',  label: 'Süpermarket',       arac: 'Panelvan', agirlik: 0.15 },
+            { id: 'Kitap',        label: 'Kitap, Müzik',      arac: 'Moto',     agirlik: 0.10 }
+        ];
+
+        window.onload = function() { 
+            const container = document.getElementById('categorySliders');
+            categoryMasterData.forEach(kat => {
+                container.innerHTML += `
+                    <div class="slider-group">
+                        <div style="display:flex; justify-content:space-between; font-size:10px;">
+                            <span>${kat.label}</span>
+                            <span id="val_${kat.id}">%0</span>
+                        </div>
+                        <input type="range" id="input_${kat.id}" min="-50" max="100" value="0" 
+                               oninput="updateLabel('val_${kat.id}', this.value); genelHesapla()">
+                    </div>`;
+            });
+            genelHesapla(); 
+        };
+
+        function updateLabel(id, val) { document.getElementById(id).innerText = '%' + val; }
+
+        function switchView() {
+            const secim = document.getElementById('ilceSecimi').value;
+            const cardsView = document.getElementById('cardsView');
+            const chartsView = document.getElementById('chartsView');
+            const title = document.getElementById('pageTitle');
+
+            if (secim === 'hepsi') {
+                cardsView.classList.add('active'); chartsView.classList.remove('active');
+                title.innerText = "Genel Projeksiyon (Tüm İlçeler)";
+                renderGridCards(globalData);
+            } else {
+                cardsView.classList.remove('active'); chartsView.classList.add('active');
+                title.innerText = secim + " Detaylı Analizi"; 
+                const hedef = globalData.find(d => d.IlceAdi === secim);
+                if(hedef) renderTargetCharts(hedef);
+            }
+        }
+
+        function genelHesapla() {
+            let kategoriArtislari = {};
+            categoryMasterData.forEach(kat => {
+                let val = document.getElementById('input_' + kat.id).value;
+                kategoriArtislari[kat.label] = parseInt(val);
+            });
+
+            const payload = {
+                zamanPeriyodu: document.getElementById('zamanPeriyodu').value,
+                enflasyonOrani: document.getElementById('input_enf').value,
+                yakitArtisi: document.getElementById('input_yakit').value,
+                bakimMaliyeti: document.getElementById('input_bakim').value,
+                personelArtisi: document.getElementById('input_personel').value,
+                depoAcmaLimiti: document.getElementById('limitAcma').value,
+                depoKapatmaLimiti: document.getElementById('limitKapatma').value,
+                maliyetLimiti: document.getElementById('limitMaliyet').value, // YENİ EKLENDİ
+                kategoriArtislari: kategoriArtislari
+            };
+
+            fetch('/api/simulasyon', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+            .then(res => res.json())
+            .then(data => {
+                globalData = data; 
+                const select = document.getElementById('ilceSecimi');
+                if (!ilceListesiYuklendi && data.length > 0) {
+                    select.innerHTML = '<option value="hepsi">-- Tüm İlçeler (Genel Bakış) --</option>';
+                    data.sort((a,b) => a.IlceAdi.localeCompare(b.IlceAdi, 'tr'));
+                    data.forEach(d => { 
+                        let opt = document.createElement('option'); 
+                        opt.value = d.IlceAdi; 
+                        opt.innerText = d.IlceAdi; 
+                        select.appendChild(opt); 
+                    });
+                    ilceListesiYuklendi = true;
+                }
+                
+                if (select.value === 'hepsi') { 
+                    renderGridCards(data); 
+                } else { 
+                    const hedef = data.find(d => d.IlceAdi === select.value); 
+                    if (hedef) renderTargetCharts(hedef); 
+                }
+            });
+        }
+
+        function renderGridCards(data) {
+            const grid = document.getElementById('gridArea'); grid.innerHTML = '';
+            if(!data || data.length === 0) { grid.innerHTML = "Veri bulunamadı."; return; }
+
+            data.forEach(ilce => {
+                let renkKod = ilce.Renk === 'kritik' ? '#e74c3c' : (ilce.Renk === 'uyari' ? '#f1c40f' : (ilce.Renk === 'mevcut' ? '#27ae60' : '#95a5a6'));
+                
+                let tableHtml = '';
+                if(ilce.Filo) {
+                    ilce.Filo.forEach(f => { 
+                        tableHtml += `
+                        <tr>
+                            <td style="font-weight:600; font-size:10px; color:#2c3e50;">${f.Kategori}</td>
+                            <td style="color:#7f8c8d; font-size:10px; text-align:center;">${f.Arac}</td>
+                            <td style="text-align:right; font-weight:bold; color:#3498db; font-size:11px;">${f.Adet}</td>
+                            <td style="text-align:right; font-weight:bold; font-size:10px; color:#7f8c8d;">${f.GelecekHacim || f.Hacim}</td>
+                        </tr>`; 
+                    });
+                }
+                
+                let kap = ilce.GercekFiloKapasitesi > 0 ? ilce.GercekFiloKapasitesi : 1;
+                let oran = (ilce.Gelecek / kap) * 100; 
+                let gosterilenOran = Math.round(oran);
+                let barW = oran > 100 ? 100 : oran;
+                let barRenk = gosterilenOran > 100 ? '#e74c3c' : (gosterilenOran > 85 ? '#f1c40f' : (gosterilenOran < 30 ? '#95a5a6' : '#27ae60')); 
+
+                let barHtml = `<div style="margin:10px 0; padding:10px; background:#f8f9fa; border-radius:5px;"><div style="display:flex; justify-content:space-between; font-size:10px; margin-bottom:3px; font-weight:bold; color:#34495e;"><span>Doluluk: %${gosterilenOran}</span><span>Kapasite: ${ilce.GercekFiloKapasitesi} m³</span></div><div class="progress-bg"><div class="progress-fill" style="width:${barW}%; background:${barRenk};"></div></div></div>`;
+
+                grid.innerHTML += `
+                <div class="card border-${ilce.Renk}">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                        <strong style="font-size:16px;">${ilce.IlceAdi}</strong>
+                        ${ilce.DepoVarMi ? '<span style="background:#2980b9; color:white; padding:2px 8px; border-radius:4px; font-size:10px; font-weight:bold;">DEPO VAR</span>' : ''}
+                    </div>
+                    <div style="display:flex; justify-content:space-between; font-size:11px; color:#7f8c8d; border-bottom:1px solid #eee; padding-bottom:10px;">
+                        <div>GÜNLÜK MALİYET<br><strong style="font-size:14px; color:${renkKod}">${ilce.GunlukMaliyet} ₺</strong></div>
+                        <div style="text-align:right">TAHMİNİ YÜK<br><strong style="font-size:14px; color:#2c3e50;">${ilce.Gelecek}</strong></div>
+                    </div>
+                    ${barHtml}
+                    <div style="margin:10px 0; background:${ilce.Renk==='kritik'?'#fadbd8':(ilce.Renk==='uyari'?'#fcf3cf':(ilce.Renk==='mevcut'?'#eafaf1':'#ecf0f1'))}; padding:8px; text-align:center; color:${renkKod}; font-weight:bold; border-radius:4px; font-size:13px; text-transform:uppercase;">
+                        ${ilce.Karar}
+                    </div>
+                    <table style="width:100%">
+                        ${tableHtml}
+                    </table>
+                </div>`;
+            });
+        }
+
+        function renderTargetCharts(ilce) {
+            const detayliFilo = ilce.DetayliFilo || []; 
+            const statusBar = document.getElementById('depoStatusBar');
+            const acikText = document.getElementById('depoAcikText');
+            
+            statusBar.style.display = 'block';
+            let kap = ilce.GercekFiloKapasitesi > 0 ? ilce.GercekFiloKapasitesi : 1;
+            let oran = (ilce.Gelecek / kap) * 100;
+            let gosterilenOran = Math.round(oran);
+            let barW = oran > 100 ? 100 : oran;
+            let renk = gosterilenOran > 100 ? '#e74c3c' : (gosterilenOran > 85 ? '#f1c40f' : (gosterilenOran < 30 ? '#95a5a6' : '#27ae60'));
+
+            document.getElementById('depoDolulukYuzde').innerText = '%' + gosterilenOran;
+            document.getElementById('depoDolulukBar').style.width = barW + '%';
+            document.getElementById('depoDolulukBar').style.backgroundColor = renk;
+            document.getElementById('depoKapasiteText').innerText = ilce.GercekFiloKapasitesi;
+            document.getElementById('depoDoluText').innerText = ilce.Gelecek;
+            
+            let fark = ilce.GercekFiloKapasitesi - ilce.Gelecek;
+            if (fark >= 0) { acikText.innerHTML = `<i class="fas fa-check-circle"></i> ${fark} m³ BOŞLUK VAR`; acikText.style.color = "#27ae60"; } 
+            else { acikText.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${Math.abs(fark)} m³ KAPASİTE AŞIMI!`; acikText.style.color = "#e74c3c"; }
+
+            document.getElementById('kpiHacim').innerText = ilce.Gelecek + " m³";
+            document.getElementById('kpiMaliyet').innerText = ilce.GunlukMaliyet + " ₺";
+            
+            let toplamArac = detayliFilo.reduce((a,b) => a + (b.Gereken || 0), 0);
+            document.getElementById('kpiArac').innerText = toplamArac + " Araç";
+            
+            let gerekenPersonel = Math.ceil(toplamArac * 1.2); 
+            document.getElementById('kpiPersonel').innerText = gerekenPersonel + " Kişi";
+            document.getElementById('kpiKarar').innerText = ilce.Karar;
+
+            // GRAFİKLER
+            if(chart1) chart1.destroy();
+            chart1 = new Chart(document.getElementById('compareChart').getContext('2d'), { 
+                type: 'bar', 
+                data: { 
+                    labels: detayliFilo.map(f => f.Arac), 
+                    datasets: [
+                        { label: 'Gereken Araç', data: detayliFilo.map(f => f.Gereken), backgroundColor: '#3498db' },
+                        { label: 'Mevcut Stok', data: detayliFilo.map(f => f.Eldeki || 0), backgroundColor: '#95a5a6' }
+                    ] 
+                }, 
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } } 
+            });
+            
+            if(chart2) chart2.destroy();
+            chart2 = new Chart(document.getElementById('catChart').getContext('2d'), { 
+                type: 'bar', 
+                data: { 
+                    labels: ilce.Filo.map(f => f.Kategori.substring(0,10)), 
+                    datasets: [{ label: 'Tahmini Yük (m3)', data: ilce.Filo.map(f => f.GelecekHacim || f.Hacim), backgroundColor: '#e67e22' }] 
+                }, 
+                options: { responsive: true, maintainAspectRatio: false } 
+            });
+
+            if(chart3) chart3.destroy();
+            chart3 = new Chart(document.getElementById('fleetChart').getContext('2d'), { 
+                type: 'doughnut', 
+                data: { 
+                    labels: detayliFilo.map(f => f.Arac), 
+                    datasets: [{ data: detayliFilo.map(f => f.Gereken), backgroundColor: ['#e67e22', '#2ecc71', '#3498db', '#9b59b6', '#f1c40f'] }] 
+                }, 
+                options: { maintainAspectRatio: false } 
+            });
+            
+            // --- GÜNCELLENEN AKILLI PERSONEL GRAFİĞİ ---
+            if(chart4) chart4.destroy();
+            
+            // 1. GEREKEN (Potansiyel ihtiyaç her zaman hesaplanır)
+            let reqSofor = Math.ceil(toplamArac);
+            let reqDepo = Math.ceil(toplamArac * 0.2); 
+            let reqPlan = Math.ceil(toplamArac * 0.05);
+
+            // 2. MEVCUT (Sadece depo varsa)
+            let curSofor = ilce.DepoVarMi ? Math.ceil(toplamArac * 0.9) : 0;
+            let curDepo = ilce.DepoVarMi ? Math.ceil(toplamArac * 0.15) : 0;
+            let curPlan = ilce.DepoVarMi ? Math.ceil(toplamArac * 0.04) : 0;
+
+            let datasets = [
+                { label: 'Gereken (Simülasyon)', data: [reqSofor, reqDepo, reqPlan], backgroundColor: '#e67e22' }
+            ];
+
+            // Depo varsa Mevcut barını da ekle
+            if (ilce.DepoVarMi) {
+                datasets.push({ label: 'Mevcut Kadro', data: [curSofor, curDepo, curPlan], backgroundColor: '#3498db' });
+            }
+
+            chart4 = new Chart(document.getElementById('personnelCompareChart').getContext('2d'), { 
+                type: 'bar', 
+                data: { labels: ['Şoför', 'Depo Görevlisi', 'Planlamacı'], datasets: datasets }, 
+                options: { maintainAspectRatio: false, scales: { y: { beginAtZero: true } } } 
+            });
+            
+            if(chart5) chart5.destroy();
+            chart5 = new Chart(document.getElementById('costChart').getContext('2d'), { 
+                type: 'pie', 
+                data: { 
+                    labels: ['Yakıt', 'Bakım', 'Personel'], 
+                    datasets: [{ data: [60, 25, 15], backgroundColor: ['#e74c3c', '#f1c40f', '#34495e'] }] 
+                }, 
+                options: { maintainAspectRatio: false } 
+            });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Personel Yönetimi | ZEKA KDS</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; background: #ecf0f1; height: 100vh; overflow: hidden; }
+        .sidebar { width: 250px; background: #2c3e50; color: white; display: flex; flex-direction: column; padding: 20px; flex-shrink: 0; box-sizing: border-box; }
+        .menu-item { padding: 15px; color: #bdc3c7; text-decoration: none; display: flex; align-items: center; margin: 5px 0; border-radius: 5px; transition: 0.3s; }
+        .menu-item:hover, .menu-item.active { background: #34495e; color: white; }
+        .menu-item i { margin-right: 10px; width: 20px; text-align: center; }
+
+        .content { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; box-sizing: border-box; }
+        
+        .kpi-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; flex-shrink: 0; }
+        .kpi-card { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-left: 5px solid #3498db; }
+        .kpi-title { font-size: 11px; color: #7f8c8d; font-weight: bold; text-transform: uppercase; }
+        .kpi-value { font-size: 22px; font-weight: bold; color: #2c3e50; }
+
+        /* --- DÜZELTİLEN KISIM: GRAFİK ALANI --- */
+        /* Sıkışmayı önlemek için gap artırıldı ve sütunlar eşitlendi */
+        .charts-container { 
+            display: grid; 
+            grid-template-columns: repeat(3, 1fr); /* 1.2fr yerine hepsi eşit (1fr) */
+            gap: 20px; /* Boşluk 15px'ten 20px'e çıktı */
+            height: 320px; /* Yükseklik 280px'ten 320px'e çıktı (rahat sığsın diye) */
+            min-height: 320px; 
+            flex-shrink: 0; 
+        }
+        .chart-box { 
+            background: white; 
+            padding: 10px; /* Padding azaltıldı ki grafik büyüsün */
+            border-radius: 10px; 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05); 
+            position: relative;
+            overflow: hidden; /* Taşan kısımları gizle */
+        }
+
+        .table-section { background: white; border-radius: 8px; padding: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .filter-row { display: flex; gap: 10px; margin-bottom: 20px; }
+        .btn-filter { flex: 1; border: none; padding: 12px; border-radius: 6px; font-weight: bold; color: white; cursor: pointer; transition: 0.3s; font-size: 10px; text-transform: uppercase; white-space: nowrap; }
+        .btn-filter:hover { filter: brightness(1.1); transform: translateY(-1px); }
+        .btn-red { background: #e74c3c; } .btn-yellow { background: #f1c40f; color: #333; } .btn-green { background: #27ae60; } .btn-gray { background: #95a5a6; }
+
+        .custom-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        .custom-table th { text-align: left; padding: 12px; background: #f8f9fa; border-bottom: 2px solid #ddd; color: #34495e; }
+        .custom-table td { padding: 12px; border-bottom: 1px solid #eee; }
+        .btn-action { padding: 6px 12px; border: none; border-radius: 4px; color: white; font-weight: bold; cursor: pointer; font-size: 10px; }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h2 style="font-size:20px; border-bottom:1px solid #34495e; padding-bottom:15px; margin-top:0;">📦 ZEKA KDS</h2>
+        <a href="dashboard.html" class="menu-item"><i class="fas fa-home"></i> Genel Bakış</a>
+        <a href="simulasyon.html" class="menu-item"><i class="fas fa-coins"></i> Finansal Simülasyon</a>
+        <a href="filo.html" class="menu-item"><i class="fas fa-truck"></i> Araç Filosu</a>
+        <a href="depolar.html" class="menu-item"><i class="fas fa-warehouse"></i> Depolar & Harita</a>
+        <a href="personel.html" class="menu-item active"><i class="fas fa-users"></i> Personel Analizi</a>
+        <a href="login.html" class="menu-item" style="margin-top:auto;"><i class="fas fa-sign-out-alt"></i> Çıkış</a>
+    </div>
+
+    <div class="content">
+        <div class="kpi-row">
+            <div class="kpi-card"><div class="kpi-title">TOPLAM PERSONEL</div><div class="kpi-value" id="kpiTotal">0</div></div>
+            <div class="kpi-card" style="border-left-color: #27ae60;"><div class="kpi-title">SİSTEM VERİMLİLİĞİ</div><div class="kpi-value" id="kpiAvg">%0</div></div>
+            <div class="kpi-card" style="border-left-color: #e74c3c;"><div class="kpi-title">KRİTİK (FESİH)</div><div class="kpi-value" id="kpiCritical" style="color:#e74c3c">0</div></div>
+        </div>
+
+        <div class="charts-container">
+            <div class="chart-box"><canvas id="roleChart"></canvas></div>
+            <div class="chart-box"><canvas id="effChart"></canvas></div>
+            <div class="chart-box"><canvas id="avgRoleChart"></canvas></div>
+        </div>
+
+        <div class="table-section">
+            <div class="filter-row">
+                <button class="btn-filter btn-red" onclick="filterPersonnel('kritik')">Kritik: Fesih (<span id="cCount">0</span>)</button>
+                <button class="btn-filter btn-yellow" onclick="filterPersonnel('izle')">İzleme: Eğitim (<span id="wCount">0</span>)</button>
+                <button class="btn-filter btn-green" onclick="filterPersonnel('verimli')">Yüksek: Prim (<span id="vCount">0</span>)</button>
+                <button class="btn-filter btn-gray" onclick="filterPersonnel('all')">Tüm Liste</button>
+            </div>
+            <table class="custom-table">
+                <thead>
+                    <tr><th>Ad Soyad</th><th>Rol</th><th>Bölge</th><th>Araç</th><th>Verim</th><th>KDS Karar</th></tr>
+                </thead>
+                <tbody id="pTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        let fullData = [];
+        let charts = {};
+
+        window.onload = fetchData;
+
+        function fetchData() {
+            fetch('/api/personel-listesi').then(res => res.json()).then(data => {
+                fullData = data;
+                updateKPIs(data);
+                renderCharts(data);
+                filterPersonnel('all');
+            });
+        }
+
+        function updateKPIs(data) {
+            const avg = Math.round(data.reduce((s, p) => s + p.VerimlilikSkoru, 0) / data.length) || 0;
+            const critical = data.filter(p => p.VerimlilikSkoru < 60).length;
+            document.getElementById('kpiTotal').innerText = data.length + " Kişi";
+            document.getElementById('kpiAvg').innerText = "%" + avg;
+            document.getElementById('kpiCritical').innerText = critical + " Kişi";
+            document.getElementById('cCount').innerText = critical;
+            document.getElementById('wCount').innerText = data.filter(p => p.VerimlilikSkoru >= 60 && p.VerimlilikSkoru <= 85).length;
+            document.getElementById('vCount').innerText = data.filter(p => p.VerimlilikSkoru > 85).length;
+        }
+
+        function renderCharts(data) {
+            Object.values(charts).forEach(c => c.destroy());
+
+            // Ortak Grafik Ayarları (Yazıların birbirine girmesini engeller)
+            const commonOptions = {
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { 
+                            boxWidth: 10, 
+                            font: { size: 10 }, // Yazı boyutu küçültüldü
+                            padding: 10 
+                        }
+                    }
+                },
+                layout: { padding: 5 }
+            };
+
+            // 1. GÖREV DAĞILIMI (Doughnut)
+            const roles = { 'Şoför': 0, 'Depo Görevlisi': 0, 'Lojistik Planlamacı': 0 };
+            const roleSums = { 'Şoför': 0, 'Depo Görevlisi': 0, 'Lojistik Planlamacı': 0 };
+            data.forEach(p => { 
+                if(roles[p.Rol] !== undefined) { roles[p.Rol]++; roleSums[p.Rol] += p.VerimlilikSkoru; }
+            });
+
+            charts.role = new Chart(document.getElementById('roleChart'), {
+                type: 'doughnut',
+                data: { labels: Object.keys(roles), datasets: [{ data: Object.values(roles), backgroundColor: ['#3498db', '#9b59b6', '#e67e22'] }] },
+                options: { ...commonOptions, plugins: { ...commonOptions.plugins, title: { display: true, text: 'Kadro Dağılımı' } } }
+            });
+
+            // 2. BÖLGESEL VERİM (Line)
+            const ilceData = {};
+            data.forEach(p => { const i = p.IlceAdi || 'Merkez'; if(!ilceData[i]) ilceData[i]={s:0,c:0}; ilceData[i].s+=p.VerimlilikSkoru; ilceData[i].c++; });
+            const labels = Object.keys(ilceData).slice(0, 8);
+            charts.eff = new Chart(document.getElementById('effChart'), {
+                type: 'line',
+                data: { labels: labels, datasets: [{ label: 'Bölge %', data: labels.map(l => Math.round(ilceData[l].s/ilceData[l].c)), borderColor: '#27ae60', fill: true, backgroundColor: 'rgba(39,174,96,0.1)' }] },
+                options: { 
+                    ...commonOptions, 
+                    scales: { y: { min: 0, max: 100 } }, 
+                    plugins: { ...commonOptions.plugins, title: { display: true, text: 'Bölge Performansı' }, legend: { display: false } } 
+                }
+            });
+
+            // 3. ROL BAZLI VERİMLİLİK (Bar)
+            const avgData = Object.keys(roles).map(r => roles[r] > 0 ? Math.round(roleSums[r]/roles[r]) : 0);
+            charts.avg = new Chart(document.getElementById('avgRoleChart'), {
+                type: 'bar',
+                data: { labels: Object.keys(roles), datasets: [{ label: 'Ort. Verim %', data: avgData, backgroundColor: ['#3498db', '#9b59b6', '#e67e22'] }] },
+                options: { 
+                    ...commonOptions, 
+                    scales: { y: { min: 0, max: 100 } }, 
+                    plugins: { ...commonOptions.plugins, title: { display: true, text: 'Rol Bazlı Performans Ort.' }, legend: { display: false } } 
+                }
+            });
+        }
+
+        function filterPersonnel(type) {
+            const tbody = document.getElementById('pTableBody');
+            tbody.innerHTML = '';
+            let filtered = fullData;
+            if(type === 'kritik') filtered = fullData.filter(p => p.VerimlilikSkoru < 60);
+            else if(type === 'izle') filtered = fullData.filter(p => p.VerimlilikSkoru >= 60 && p.VerimlilikSkoru <= 85);
+            else if(type === 'verimli') filtered = fullData.filter(p => p.VerimlilikSkoru > 85);
+
+            filtered.slice(0, 50).forEach(p => {
+                let badge = p.VerimlilikSkoru < 60 ? 'badge-red' : (p.VerimlilikSkoru <= 85 ? 'badge-yellow' : 'badge-green');
+                let btn = p.VerimlilikSkoru < 60 ? `<button class="btn-action btn-red" onclick="handleAction(${p.PersonelID},'isten-cikar')">FESİH</button>` : 
+                          (p.VerimlilikSkoru <= 85 ? `<button class="btn-action btn-yellow" onclick="handleAction(${p.PersonelID},'izle')">EĞİTİM</button>` : 
+                          `<button class="btn-action btn-green" onclick="handleAction(${p.PersonelID},'prim')">PRİM</button>`);
+                tbody.innerHTML += `<tr><td><b>${p.AdSoyad}</b></td><td>${p.Rol}</td><td>${p.IlceAdi || 'Merkez'}</td><td>${p.Plaka || '-'}</td><td><span class="status-badge ${badge}">%${p.VerimlilikSkoru}</span></td><td>${btn}</td></tr>`;
+            });
+        }
+
+        function handleAction(id, type) {
+            Swal.fire({ title: 'KDS Onayı', text: 'Karar uygulansın mı?', icon: 'warning', showCancelButton: true }).then((r) => {
+                if (r.isConfirmed) {
+                    fetch('/api/personel-aksiyon', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({id, aksiyon: type}) })
+                    .then(() => { Swal.fire('Başarılı', 'İşlem yapıldı', 'success'); fetchData(); });
+                }
+            });
+        }
+    </script>
+</body>
+</html>
