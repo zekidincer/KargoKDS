@@ -1,6 +1,6 @@
 const mysql = require('mysql2');
 
-// --- VERİTABANI BAĞLANTISI (Eski kodundaki ayarların aynısı) ---
+// --- VERİTABANI BAĞLANTISI  ---
 const db = mysql.createConnection({
     host: 'localhost', 
     user: 'root', 
