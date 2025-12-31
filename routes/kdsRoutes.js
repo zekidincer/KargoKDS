@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const kdsController = require('../controllers/kdsController');
 
-// URL Eşleşmeleri //
+// URL Eşleşmeleri  //
 
 router.post('/login', kdsController.login);
 router.get('/dashboard-stats', kdsController.getDashboardStats);
