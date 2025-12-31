@@ -2,8 +2,7 @@ const express = require('express');
 const router = express.Router();
 const kdsController = require('../controllers/kdsController');
 
-// URL Eşleşmeleri (server.js'de /api ön eki var, o yüzden buraya sadece devamını yazıyoruz)
-// Örn: router.post('/login') aslında /api/login demektir.
+// URL Eşleşmeleri (server.js'de /api ön eki var, o yüzden buraya sadece devamını yazıyoruz)//
 
 router.post('/login', kdsController.login);
 router.get('/dashboard-stats', kdsController.getDashboardStats);
