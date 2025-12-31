@@ -154,7 +154,7 @@
 
         async function fetchData() {
             try {
-                // VERİ KAYNAĞI DEĞİŞİKLİĞİ: Araç Tiplerini alabilmek için 'filo-bilgileri'ne geçtik
+                // VERİ KAYNAĞI DEĞİŞİKLİĞİ //
                 const [depoRes, aracRes, persRes] = await Promise.all([
                     fetch('/api/depolar'),
                     fetch('/api/filo-bilgileri'), // Değişti: Detaylı filo verisi
