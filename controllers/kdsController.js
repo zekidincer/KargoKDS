@@ -1,11 +1,12 @@
+require('dotenv').config(); 
 const mysql = require('mysql2');
 
-// --- VERİTABANI BAĞLANTISI  ---
+// Veritabanı bağlantısı artık .env dosyasından okunuyor
 const db = mysql.createConnection({
-    host: 'localhost', 
-    user: 'root', 
-    password: '', 
-    database: 'KargoKDS_Izmir', 
+    host: process.env.DB_HOST, 
+    user: process.env.DB_USER, 
+    password: process.env.DB_PASS, 
+    database: process.env.DB_NAME, 
     multipleStatements: true
 });
 
@@ -13,7 +14,7 @@ db.connect((err) => {
     if (err) {
         console.error('❌ Controller DB Hatası:', err);
     } else {
-        console.log('✅ Controller: Veritabanına bağlandı!');
+        console.log('✅ Controller: .env üzerinden veritabanına bağlandı!');
     }
 });
 
